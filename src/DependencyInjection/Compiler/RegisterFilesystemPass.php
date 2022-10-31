@@ -43,8 +43,8 @@ final class RegisterFilesystemPass implements CompilerPassInterface
                     'The config parameter "%s" references a service %s, which is not an instance of %s. Fix this by creating a valid service that implements %s.',
                     $parameter,
                     $definitionClass,
-                    FilesystemInterface::class,
-                    FilesystemInterface::class
+                    FilesystemReader::class,
+                    FilesystemReader::class
                 ));
             }
 

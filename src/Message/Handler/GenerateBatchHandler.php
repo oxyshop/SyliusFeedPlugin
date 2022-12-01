@@ -11,7 +11,9 @@ use const JSON_PRESERVE_ZERO_FRACTION;
 use const JSON_PRETTY_PRINT;
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
-use League\Flysystem\FilesystemInterface;
+use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\UnableToWriteFile;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Setono\SyliusFeedPlugin\Event\BatchGeneratedEvent;
@@ -58,7 +60,7 @@ final class GenerateBatchHandler implements MessageHandlerInterface
 
     private Environment $twig;
 
-    private FilesystemInterface $filesystem;
+    private Filesystem $filesystem;
 
     private FeedPathGeneratorInterface $temporaryFeedPathGenerator;
 
@@ -83,7 +85,7 @@ final class GenerateBatchHandler implements MessageHandlerInterface
         ObjectManager $feedManager,
         FeedTypeRegistryInterface $feedTypeRegistry,
         Environment $twig,
-        FilesystemInterface $filesystem,
+        Filesystem $filesystem,
         FeedPathGeneratorInterface $temporaryFeedPathGenerator,
         EventDispatcherInterface $eventDispatcher,
         Registry $workflowRegistry,
@@ -206,11 +208,13 @@ final class GenerateBatchHandler implements MessageHandlerInterface
             $dir = $this->temporaryFeedPathGenerator->generate($feed, (string) $channel->getCode(), (string) $locale->getCode());
             $path = TemporaryFeedPathGenerator::getPartialFile($dir, $this->filesystem);
 
-            $res = $this->filesystem->writeStream((string) $path, $stream);
-
-            fclose($stream);
-
-            Assert::true($res, 'An error occurred when trying to write a feed item');
+            try {
+                $this->filesystem->writeStream((string) $path, $stream);
+            } catch (UnableToWriteFile|FilesystemException $exception) {
+                throw new \RuntimeException('An error occurred when trying to write a feed item');
+            } finally {
+                fclose($stream);
+            }
 
             $this->feedManager->flush();
             $this->feedManager->clear();

@@ -6,7 +6,10 @@ namespace Setono\SyliusFeedPlugin\Message\Handler;
 
 use Doctrine\Persistence\ObjectManager;
 use InvalidArgumentException;
-use League\Flysystem\FilesystemInterface;
+use League\Flysystem\FileAttributes;
+use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\UnableToWriteFile;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Setono\SyliusFeedPlugin\FeedType\FeedTypeInterface;
@@ -32,7 +35,7 @@ final class FinishGenerationHandler implements MessageHandlerInterface
 
     private ObjectManager $feedManager;
 
-    private FilesystemInterface $filesystem;
+    private Filesystem $filesystem;
 
     private Registry $workflowRegistry;
 
@@ -47,7 +50,7 @@ final class FinishGenerationHandler implements MessageHandlerInterface
     public function __construct(
         FeedRepositoryInterface $feedRepository,
         ObjectManager $feedManager,
-        FilesystemInterface $filesystem,
+        Filesystem $filesystem,
         Registry $workflowRegistry,
         Environment $twig,
         FeedTypeRegistryInterface $feedTypeRegistry,
@@ -93,21 +96,19 @@ final class FinishGenerationHandler implements MessageHandlerInterface
                     fwrite($batchStream, $feedStart);
 
                     $files = $this->filesystem->listContents((string) $dir);
-                    /** @var array{basename: string, path: string} $file */
+                    /** @var FileAttributes $file */
                     foreach ($files as $file) {
-                        Assert::isArray($file);
-                        Assert::keyExists($file, 'basename');
-                        Assert::keyExists($file, 'path');
+                        Assert::isInstanceOf($file, FileAttributes::class);
 
-                        if (TemporaryFeedPathGenerator::BASE_FILENAME === $file['basename']) {
+                        if (TemporaryFeedPathGenerator::BASE_FILENAME === $file->path()) {
                             continue;
                         }
 
-                        $fp = $this->filesystem->readStream($file['path']);
+                        $fp = $this->filesystem->readStream($file->path());
                         if (false === $fp) {
                             throw new \RuntimeException(sprintf(
                                 'The file "%s" could not be opened as a resource',
-                                $file['path']
+                                $file->path()
                             ));
                         }
 
@@ -117,18 +118,18 @@ final class FinishGenerationHandler implements MessageHandlerInterface
 
                         fclose($fp);
 
-                        $this->filesystem->delete($file['path']);
+                        $this->filesystem->delete($file->path());
                     }
 
                     fwrite($batchStream, $feedEnd);
 
-                    $res = $this->filesystem->writeStream((string) TemporaryFeedPathGenerator::getBaseFile($dir), $batchStream);
-
-                    // tries to close the file pointer although it may already have been closed by flysystem
-                    fclose($batchStream);
-
-                    if (false === $res) {
+                    try {
+                        $this->filesystem->writeStream((string) TemporaryFeedPathGenerator::getBaseFile($dir), $batchStream);
+                    } catch (UnableToWriteFile|FilesystemException $exception) {
                         throw new RuntimeException('An error occurred when trying to write the finished feed write');
+                    } finally {
+                        // tries to close the file pointer although it may already have been closed by flysystem
+                        fclose($batchStream);
                     }
                 }
             }

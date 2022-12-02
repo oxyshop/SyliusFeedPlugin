@@ -6,7 +6,7 @@ namespace Tests\Setono\SyliusFeedPlugin\Behat\Context\Cli;
 
 use Behat\Behat\Context\Context;
 use InvalidArgumentException;
-use League\Flysystem\FilesystemInterface;
+use League\Flysystem\Filesystem;
 use Setono\SyliusFeedPlugin\Command\ProcessFeedsCommand;
 use Setono\SyliusFeedPlugin\Generator\FeedPathGeneratorInterface;
 use Setono\SyliusFeedPlugin\Model\FeedInterface;
@@ -32,7 +32,7 @@ final class ProcessFeedsContext implements Context
     /** @var ProcessFeedsCommand */
     private $command;
 
-    /** @var FilesystemInterface */
+    /** @var Filesystem */
     private $filesystem;
 
     /** @var FeedProcessorInterface */
@@ -46,7 +46,7 @@ final class ProcessFeedsContext implements Context
 
     public function __construct(
         KernelInterface $kernel,
-        FilesystemInterface $filesystem,
+        Filesystem $filesystem,
         FeedProcessorInterface $processor,
         FeedPathGeneratorInterface $feedPathGenerator,
         RepositoryInterface $feedRepository
@@ -96,7 +96,7 @@ final class ProcessFeedsContext implements Context
             foreach ($channel->getLocales() as $locale) {
                 $path = $this->feedPathGenerator->generate($feed, $channel->getCode(), $locale->getCode());
 
-                Assert::true($this->filesystem->has($path));
+                Assert::true($this->filesystem->fileExists($path));
 
                 $expectedContent = $this->getExpectedContent($channel->getCode());
                 $actualContent = $this->removeWhitespace($this->filesystem->read($path));

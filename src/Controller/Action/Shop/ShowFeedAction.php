@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\SyliusFeedPlugin\Controller\Action\Shop;
 
-use League\Flysystem\FilesystemInterface;
+use League\Flysystem\Filesystem;
 use RuntimeException;
 use Setono\SyliusFeedPlugin\Generator\FeedPathGeneratorInterface;
 use Setono\SyliusFeedPlugin\Repository\FeedRepositoryInterface;
@@ -24,7 +24,7 @@ final class ShowFeedAction
 
     private FeedPathGeneratorInterface $feedPathGenerator;
 
-    private FilesystemInterface $filesystem;
+    private Filesystem $filesystem;
 
     private MimeTypesInterface $mimeTypes;
 
@@ -33,7 +33,7 @@ final class ShowFeedAction
         ChannelContextInterface $channelContext,
         LocaleContextInterface $localeContext,
         FeedPathGeneratorInterface $feedPathGenerator,
-        FilesystemInterface $filesystem,
+        Filesystem $filesystem,
         MimeTypesInterface $mimeTypes
     ) {
         $this->repository = $repository;
@@ -56,7 +56,7 @@ final class ShowFeedAction
 
         $feedPath = $this->feedPathGenerator->generate($feed, $channelCode, $localeCode);
 
-        if (!$this->filesystem->has((string) $feedPath)) {
+        if (!$this->filesystem->fileExists((string) $feedPath)) {
             throw new NotFoundHttpException(sprintf('The feed with id %s has not been generated', $code));
         }
 

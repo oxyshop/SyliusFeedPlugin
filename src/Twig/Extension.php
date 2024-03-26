@@ -59,7 +59,12 @@ final class Extension extends AbstractExtension
 
     private function getScheme(): string
     {
-        $request = $this->requestStack->getMasterRequest();
+        if (\is_callable([$this->requestStack, 'getMainRequest'])) {
+            $request = $this->requestStack->getMainRequest();   // symfony 5.3+
+        } else {
+            $request = $this->requestStack->getMasterRequest();
+        }
+
         if (null === $request) {
             return 'https';
         }
